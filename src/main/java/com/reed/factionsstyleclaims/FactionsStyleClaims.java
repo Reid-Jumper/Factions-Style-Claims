@@ -1,6 +1,8 @@
 package com.reed.factionsstyleclaims;
 
 import com.mojang.logging.LogUtils;
+import com.reed.factionsstyleclaims.commands.TestCommand;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.common.MinecraftForge;
@@ -24,6 +26,7 @@ public class FactionsStyleClaims
 {
     public static final Logger LOGGER = LogUtils.getLogger();
     public static final String MOD_ID = "factionsstyleclaims";
+    public static MinecraftServer SERVER;
 
     public FactionsStyleClaims()
     {
@@ -67,6 +70,8 @@ public class FactionsStyleClaims
     {
         // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+        SERVER = event.getServer();
+        TestCommand.register(SERVER.getCommands().getDispatcher());
     }
 
     // You can use EventBusSubscriber to automatically subscribe events on the contained class (this is subscribing to the MOD
