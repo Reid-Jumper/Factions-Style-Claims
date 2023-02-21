@@ -1,10 +1,15 @@
 package com.reed.factionsstyleclaims;
 
 import com.mojang.logging.LogUtils;
+import com.reed.factionsstyleclaims.util.FSCSavedData;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.scores.PlayerTeam;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.IExtensionPoint;
@@ -18,12 +23,15 @@ import net.minecraftforge.network.NetworkConstants;
 import org.slf4j.Logger;
 import net.minecraftforge.fml.ModLoadingContext;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 @Mod(FactionsStyleClaims.MOD_ID)
 public class FactionsStyleClaims
 {
     public static final Logger LOGGER = LogUtils.getLogger();
     public static final String MOD_ID = "factionsstyleclaims";
+    public FSCSavedData fscSavedData;
+    public static MinecraftServer SERVER;
 
     public FactionsStyleClaims()
     {
@@ -67,6 +75,51 @@ public class FactionsStyleClaims
     {
         // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+        SERVER = event.getServer();
+        fscSavedData = SERVER.overworld().getDataStorage().computeIfAbsent(FSCSavedData::load, FSCSavedData::create, FSCSavedData.FSC_DATA);
+        Map<String, Integer> teamPowerMap = fscSavedData.getTeamPowerMap();
+        for(PlayerTeam team : SERVER.getScoreboard().getPlayerTeams()) {
+            String name = team.getName();
+            if (teamPowerMap.containsKey(name)) {
+                LOGGER.info(name + " power : " + teamPowerMap.get(name).toString());
+            } else {
+                int power = 0;
+                int maxPower = 0;
+                LOGGER.info("Registering team power data for " + name);
+                for (String player : team.getPlayers()) {
+                    if (fscSavedData.getPowerMap().containsKey(player)) {
+                        power += fscSavedData.getPowerMap().get(player);
+                        maxPower += fscSavedData.getMaxPowerMap().get(player);
+                    } else {
+                        fscSavedData.getPowerMap().put(player, 10);
+                        fscSavedData.getMaxPowerMap().put(player, 25);
+                        power += 10;
+                        maxPower += 25;
+                    }
+                }
+                fscSavedData.getTeamPowerMap().put(name, power);
+                fscSavedData.getTeamMaxPowerMap().put(name, maxPower);
+                LOGGER.info(fscSavedData.getTeamPowerMap().toString());
+                LOGGER.info(fscSavedData.getTeamMaxPowerMap().toString());
+                fscSavedData.setDirty();
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        Map<String, Integer> powerMap = fscSavedData.getPowerMap();
+        String name = event.getPlayer().getScoreboardName();
+        if (powerMap.containsKey(name)) {
+            LOGGER.info(name + " power : " + powerMap.get(name).toString());
+        } else {
+            LOGGER.info("Registering power data for " + name);
+            fscSavedData.getMaxPowerMap().put(name, 25);
+            fscSavedData.getPowerMap().put(name, 10);
+            LOGGER.info(fscSavedData.getPowerMap().toString());
+            LOGGER.info(fscSavedData.getMaxPowerMap().toString());
+            fscSavedData.setDirty();
+        }
     }
 
     // You can use EventBusSubscriber to automatically subscribe events on the contained class (this is subscribing to the MOD
